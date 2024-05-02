@@ -1,2 +1,4 @@
 packages/webapp/node_modules
+packages/webapp/dist
 packages/webapi/node_modules
+packages/webapi/dist
