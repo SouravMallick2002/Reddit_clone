@@ -2,7 +2,7 @@ import express, { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-// import fetchuser from "./middleware/fetchuser";
+import fetchuser from "./middleware/fetchuser";
 import User from "./models/User";
 
 const JWT_KEY = "ThisIsJustAnotherJWTKey";
@@ -122,16 +122,16 @@ router.post(
 
 // ROUTE 3: Get details of logged-in user -> POST "/api/auth/getuser". Login required
 
-// router.post("/getuser", fetchuser, async (req: Request, res: Response) => {
-//   try {
-//     const userId = req.user.id;
-//     const user = await User.findById(userId).select("-password");
-//     res.send(user);
-// } catch (error: any) {
-//     console.error(error.message);
-//     res.status(500).send("Server Error");
-//   }
-  
-// });
+router.post("/getuser", fetchuser, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id; // Using type assertion here
+    const user = await User.findById(userId).select("-password");
+    res.send(user);
+  } catch (error: any) {
+    console.error(error.message);
+    res.status(500).send("Server Error");
+  }
+});
+
 
 export default router;
