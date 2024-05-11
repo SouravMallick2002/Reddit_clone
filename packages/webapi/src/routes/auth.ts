@@ -1,9 +1,10 @@
 import express, { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import bcrypt from "bcryptjs";
-import fetchuser from "../middleware/fetchuser";
-import User from "../models/User";
+import fetchuser, { AuthenticatedRequest } from "../middleware/fetchuser";
+import User, { UserDocument } from "../models/User";
 import { signAuthToken } from "../utils/auth-token";
+import Session from "../models/Session";
 const router: Router = express.Router();
 
 // ROUTE 1: Create a user using -> POST "/api/auth/createuser"
@@ -22,8 +23,8 @@ router.post(
     }
 
     try {
-      let user = await User.findOne({ email: req.body.email });
-      if (user) {
+      const existingUser = await User.findOne({ email: req.body.email });
+      if (existingUser) {
         return res.status(400).json({
           success,
           error: "User with this email already exists",
@@ -33,15 +34,21 @@ router.post(
       const salt = bcrypt.genSaltSync(10);
       const securedPassword = bcrypt.hashSync(req.body.password, salt);
 
-      user = new User({
+      const newUser = new User({
         name: req.body.name,
         password: securedPassword,
         email: req.body.email,
       });
+      await newUser.save();
 
-      await user.save();
+      const newSession = new Session({
+        user: newUser.id,
+        ip: req.ip,
+        ua: req.header("User-Agent"),
+      })
+      await newSession.save()
 
-      const authtoken = signAuthToken(user.id); // Use centralized token signing
+      const authtoken = signAuthToken(newUser, newSession);
       success = true;
       res.json({ success, authtoken });
     } catch (error) {
@@ -69,7 +76,7 @@ router.post(
     const { email, password } = req.body;
 
     try {
-      let user = await User.findOne({ email });
+      const user = await User.findOne({ email });
       if (!user) {
         success = false;
         return res.status(400).json({
@@ -88,7 +95,14 @@ router.post(
         });
       }
 
-      const authtoken = signAuthToken(user.id); // Use centralized token signing
+      const session = new Session({
+        user: user.id,
+        ip: req.ip,
+        ua: req.header("User-Agent"),
+      })
+      await session.save()
+
+      const authtoken = signAuthToken(user, session); // Use centralized token signing
       success = true;
       res.json({ success, authtoken });
     } catch (error) {
@@ -99,11 +113,11 @@ router.post(
 );
 
 
-router.post("/getuser", fetchuser, async (req: Request, res: Response) => {
+router.post("/getuser", fetchuser, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Now TypeScript knows about `req.user`
     const userId = req.user!.id;
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findById(userId);
     res.send(user);
   } catch (error) {
     console.error((error as Error).message);
