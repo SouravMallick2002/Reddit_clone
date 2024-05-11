@@ -1,74 +1,57 @@
 import express, { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import fetchuser from "./middleware/fetchuser";
-import User from "./models/User";
-
-const JWT_KEY = "ThisIsJustAnotherJWTKey";
+import fetchuser from "../middleware/fetchuser";
+import User from "../models/User";
+import { signAuthToken } from "../utils/auth-token";
 const router: Router = express.Router();
 
-// ROUTE 1: Create a user using -> POST "/api/auth/createuser". Doesn't require authentication
+// ROUTE 1: Create a user using -> POST "/api/auth/createuser"
 router.post(
   "/createuser",
   [
     body("name", "Enter a valid name").isLength({ min: 3 }),
     body("email", "Enter a valid Email").isEmail(),
-    body("password", "Password must be at least five characters").isLength({
-      min: 5,
-    }),
+    body("password", "Password must be at least five characters").isLength({ min: 5 }),
   ],
   async (req: Request, res: Response) => {
     let success = false;
-    //return bad request and error message for errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      success = false;
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ errors: errors.array(), success });
     }
 
-    // Check if email is already in use
     try {
       let user = await User.findOne({ email: req.body.email });
       if (user) {
-        success = false;
         return res.status(400).json({
           success,
           error: "User with this email already exists",
         });
       }
 
-      // Password encryption
       const salt = bcrypt.genSaltSync(10);
       const securedPassword = bcrypt.hashSync(req.body.password, salt);
 
-      // Creating new user
-      user = await User.create({
+      user = new User({
         name: req.body.name,
         password: securedPassword,
         email: req.body.email,
       });
 
-      const data = {
-        user: {
-          id: user.id,
-        },
-      };
-      const authtoken = jwt.sign(data, JWT_KEY);
+      await user.save();
+
+      const authtoken = signAuthToken(user.id); // Use centralized token signing
       success = true;
       res.json({ success, authtoken });
-
-      // res.json(user);
-    } catch (error: any) {
-        console.error(error.message);
-        res.status(500).send("Server Error");
-      }
-      
-      
+    } catch (error) {
+      console.error((error as Error).message); // Type assertion here
+      res.status(500).send("Internal Server Error");
+    }
   }
 );
 
-// ROUTE 2: Authenticating a user using -> POST "/api/auth/login". Doesn't require authentication
+// ROUTE 2: Authenticating a user using -> POST "/api/auth/login"
 router.post(
   "/login",
   [
@@ -77,14 +60,14 @@ router.post(
   ],
   async (req: Request, res: Response) => {
     let success = false;
-    // Return bad request and error message for errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      success = false;
-      return res.status(400).json({ success, errors: errors.array() });
+      return res.status(400).json({ errors: errors.array(), success });
     }
 
+    // Destructure email and password from the request body
     const { email, password } = req.body;
+
     try {
       let user = await User.findOne({ email });
       if (!user) {
@@ -95,6 +78,7 @@ router.post(
         });
       }
 
+      // Compare the provided password with the stored hashed password
       const passwordMatch = await bcrypt.compare(password, user.password);
       if (!passwordMatch) {
         success = false;
@@ -104,32 +88,26 @@ router.post(
         });
       }
 
-      const data = {
-        user: {
-          id: user.id,
-        },
-      };
-      const authtoken = jwt.sign(data, JWT_KEY);
+      const authtoken = signAuthToken(user.id); // Use centralized token signing
       success = true;
       res.json({ success, authtoken });
-    } catch (error: any) {
-        console.error(error.message);
-        res.status(500).send("Server Error");
-      }
-      
+    } catch (error) {
+      console.error((error as Error).message); // Type assertion here
+      res.status(500).send("Internal Server Error");
+    }
   }
 );
 
-// ROUTE 3: Get details of logged-in user -> POST "/api/auth/getuser". Login required
 
 router.post("/getuser", fetchuser, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id; // Using type assertion here
+    // Now TypeScript knows about `req.user`
+    const userId = req.user!.id;
     const user = await User.findById(userId).select("-password");
     res.send(user);
-  } catch (error: any) {
-    console.error(error.message);
-    res.status(500).send("Server Error");
+  } catch (error) {
+    console.error((error as Error).message);
+    res.status(500).send("Internal Server Error");
   }
 });
 

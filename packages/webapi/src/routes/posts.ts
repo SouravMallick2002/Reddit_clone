@@ -1,7 +1,7 @@
 import express, { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
-import fetchuser, { CustomRequest } from "./middleware/fetchuser";
-import Posts, { IPost } from "./models/Posts";
+import fetchuser, { CustomRequest } from "../middleware/fetchuser";
+import Posts, { IPost } from "../models/Posts";
 
 const router: Router = express.Router();
 
@@ -33,7 +33,7 @@ router.post(
         if (!errors.isEmpty()) {
           return res.status(400).json({ errors: errors.array() });
         }
-  
+        console.log(req.user)
         if (!req.user || !req.user.id) {
           return res.status(401).json({ message: "Unauthorized" });
         }

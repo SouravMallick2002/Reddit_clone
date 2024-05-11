@@ -1,13 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { validateAuthToken } from '../utils/auth-token';  // Import the updated validate function
+import { JwtPayload } from 'jsonwebtoken';
 
 export interface CustomRequest extends Request {
   user?: JwtPayload;
 }
 
-const JWT_KEY = "ThisIsJustAnotherJWTKey";
-
-const fetchuser = (req: CustomRequest, res: Response, next: NextFunction) => {
+const fetchuser = async (req: CustomRequest, res: Response, next: NextFunction) => {
   const token = req.header("auth-token");
   if (!token) {
     return res.status(401).json({
@@ -15,8 +14,8 @@ const fetchuser = (req: CustomRequest, res: Response, next: NextFunction) => {
     });
   }
   try {
-    const decoded = jwt.verify(token, JWT_KEY) as JwtPayload;
-    req.user = decoded;
+    const decoded = await validateAuthToken(token); // Use the updated function
+    req.user = decoded.user;
     next();
   } catch (error) {
     res.status(401).json({
