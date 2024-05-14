@@ -92,4 +92,29 @@ router.put("/updatepost/:id", fetchuser, async (req: AuthenticatedRequest, res: 
   });
   
 
+// ROUTE 5: Get all posts (unauthenticated) using -> GET "/api/posts/allposts"
+router.get("/allposts", async (req: Request, res: Response) => {
+  try {
+    const posts = await Posts.find();
+    res.json(posts);
+  } catch (error: any) {
+    console.error(error.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// ROUTE 6: Search posts by keyword -> GET "/api/posts/searchposts"
+router.get("/searchposts", async (req: Request, res: Response) => {
+  const { keyword } = req.query;
+  try {
+    const searchQuery = { $or: [{ title: { $regex: keyword, $options: "i" } }, { description: { $regex: keyword, $options: "i" } }] };
+    const posts = await Posts.find(searchQuery);
+    res.json(posts);
+  } catch (error: any) {
+    console.error(error.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+
 export default router;

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { validateAuthToken } from '../utils/auth-token';  // Import the updated validate function
-import { JwtPayload } from 'jsonwebtoken';
+import { validateAuthToken } from '../utils/auth-token';
 import User, { UserDocument } from '../models/User';
 import Session, { SessionDocument } from '../models/Session';
 

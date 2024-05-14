@@ -113,6 +113,7 @@ router.post(
 );
 
 
+// ROUTE 3: Authenticating a user using -> POST "/api/auth/getuser"
 router.post("/getuser", fetchuser, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Now TypeScript knows about `req.user`
@@ -124,6 +125,18 @@ router.post("/getuser", fetchuser, async (req: AuthenticatedRequest, res: Respon
     res.status(500).send("Internal Server Error");
   }
 });
+
+
+// ROUTE 4: Authenticating a user using -> POST "/api/auth/logout"
+router.post(
+  "/logout",
+  fetchuser,
+  async (req: AuthenticatedRequest, res: Response) => {
+    req.session!.revokedAt = new Date()
+    req.session!.save()
+    return res.json({ success: true })
+  }
+);
 
 
 export default router;
